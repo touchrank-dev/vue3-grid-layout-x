@@ -7,8 +7,12 @@ export interface Point {
   x: number
   y: number
 }
+export interface PointAndClientXY extends Point {
+  clientX: number
+  clientY: number
+}
 // Get from offsetParent
-export function offsetXYFromParentOf(evt: MouseEvent): Point {
+export function offsetXYFromParentOf(evt: MouseEvent): PointAndClientXY {
   const t = evt.target as HTMLElement
   const offsetParent = t.offsetParent || document.body
   const offsetParentRect =
@@ -20,7 +24,7 @@ export function offsetXYFromParentOf(evt: MouseEvent): Point {
   /*const x = Math.round(evt.clientX + offsetParent.scrollLeft - offsetParentRect.left);
   const y = Math.round(evt.clientY + offsetParent.scrollTop - offsetParentRect.top);*/
 
-  return {x, y}
+  return {x, y, clientX: evt.clientX, clientY: evt.clientY}
 }
 
 export interface DraggableCoreData {
