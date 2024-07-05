@@ -16,6 +16,7 @@ module.exports = {
   rules: {
     "prettier/prettier": "warn",
     semi: [2, "never"],
+    "@typescript-eslint/unified-signatures": "off",
     "@typescript-eslint/no-explicit-any": "off", //关闭any类型警告
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/no-var-requires": "warn", // 允许common.js方式引入

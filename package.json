@@ -1,11 +1,11 @@
 {
-  "name": "vue3-grid-layout-next",
+  "name": "vue3-grid-layout-x",
   "version": "1.0.7",
   "type": "module",
-  "description": "A draggable and resizable grid layout, as a Vue component.",
+  "description": "A enhanced draggable and resizable grid layout, as a Vue component.",
   "keywords": [
     "grid",
-    "vuejs",
+    "vue3",
     "drag",
     "draggable",
     "resize",
@@ -16,15 +16,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xhlife/vue3-grid-layout.git"
+    "url": "https://github.com/touchrank-dev/vue3-grid-layout-x"
   },
   "author": "",
-  "homepage": "https://github.com/xhlife/vue3-grid-layout",
+  "homepage": "https://github.com/touchrank-dev/vue3-grid-layout-x",
   "main": "dist/vue3-grid-layout.js",
   "unpkg": "dist/vue3-grid-layout.umd.cjs",
   "typings": "dist/components/index.d.ts",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
@@ -37,9 +37,11 @@
     "@interactjs/modifiers": "^1.10.17",
     "@interactjs/core": "^1.10.17",
     "@interactjs/utils": "^1.10.17",
+    "@vueuse/core": "^10.11.0",
     "element-resize-detector": "^1.2.4",
     "interactjs": "^1.10.17",
-    "mitt": "^3.0.0"
+    "mitt": "^3.0.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/element-resize-detector": "^1.1.3",
