@@ -14,6 +14,7 @@ export type LayoutItem = LayoutItemRequired & {
   static?: boolean
   isDraggable?: boolean
   isResizable?: boolean
+  sortIndex?: number
 }
 
 export type Layout = Array<LayoutItem>
@@ -110,6 +111,9 @@ export function compact(layout: Layout, verticalCompact: boolean, minPositions?:
       // Statics are already in this array.
       compareWith.push(l)
     }
+
+    //ZZY:记录排序值
+    l.sortIndex = i
 
     // Add to output array to make sure they still come out in the right order.
     out[layout.indexOf(l)] = l
@@ -326,7 +330,7 @@ export function moveElementAwayFromCollision(
       return moveElement(layout, itemToMove, undefined, fakeItem.y, preventCollision)
     }
   }
-  /* 
+  /*
   layout: Layout,
   l: LayoutItem,
   x: number,
