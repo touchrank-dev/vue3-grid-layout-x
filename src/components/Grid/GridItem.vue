@@ -1,5 +1,5 @@
 <template>
-  <div ref="this$refsItem" class="vue-grid-item" :class="classObj" :style="styleObj">
+  <div ref="this$refsItem" class="vue-grid-item autoHeight" :class="classObj" :style="styleObj">
     <slot :style="styleObj"></slot>
     <span v-if="resizableAndNotStatic" ref="handle" :class="resizableHandleClass"></span>
     <!--<span v-if="draggable" ref="dragHandle" class="vue-draggable-handle"></span>-->
@@ -11,7 +11,7 @@ export default {
 }
 </script>
 <script lang="ts" setup>
-import {ref, inject, computed, watch, onBeforeUnmount, onMounted, useSlots} from "vue"
+import {ref, inject, computed, watch, onBeforeUnmount, onMounted, useSlots, nextTick} from "vue"
 // import useCurrentInstance from "@/hooks/useInstance"
 import {setTopLeft, setTopRight, setTransformRtl, setTransform, Layout} from "@/helpers/utils"
 import {getControlPosition, createCoreData} from "@/helpers/draggableUtils"
@@ -31,6 +31,7 @@ import {Props, LayoutData} from "./GridLayout.vue"
 import {Interactable} from "@interactjs/core/Interactable"
 
 import useCurrentInstance from "@/hooks/useInstance"
+import {useElementSize} from "@vueuse/core"
 const {proxy} = useCurrentInstance()
 
 // for parent's instance
@@ -53,6 +54,7 @@ const eventBus = inject("eventBus") as Emitter<{
   setMaxRows: number
   compact?: undefined
   directionchange: undefined
+  calcClientHeight: undefined
 }>
 // console.log(thisLayout, eventBus)
 
@@ -67,10 +69,11 @@ const emit = defineEmits<{
   ): void
   (e: "resize", i: number | string, h: number, w: number, height: number, width: number): void
   (e: "resized", i: number | string, h: number, w: number, height: number, width: number): void
-  (e: "move", i: number | string, x: number, y: number): void
-  (e: "moved", i: number | string, x: number, y: number): void
+  (e: "move", i: number | string, x: number, y: number, clientX: number, clientY: number): void
+  (e: "moved", i: number | string, x: number, y: number, clientX: number, clientY: number): void
   (e: "dragging", event: MouseEvent, i: number | string): void
   (e: "dragend", event: MouseEvent, i: number | string): void
+  (e: "height-updated", i: number | string, h: number): void
 }>()
 
 interface PropsChild {
@@ -87,6 +90,7 @@ interface PropsChild {
   w: number
   h: number
   i: string | number
+  sortIndex: number
   dragIgnoreFrom?: string
   dragAllowFrom?: string | null
   resizeIgnoreFrom?: string
@@ -370,6 +374,24 @@ function setColNum(colNum: number) {
   cols.value = parseInt(col)
 }
 
+/**
+ * 根据GridItem实际显示的高度，计算h值，更新CSS重新渲染
+ */
+function calcClientHeightHandler() {
+  const size = useElementSize(this$refsItem)
+  // 根据DOM高度，反算h值：将像素值转换为行数
+  const {w, h} = calcWH(size.height.value, size.width.value, true)
+  emit("height-updated", props.i, h)
+  //更新css
+  nextTick(() => {
+    createStyle()
+    if (this$refsItem.value) {
+      this$refsItem?.value.classList.remove("autoHeight")
+      this$refsItem?.value.classList.add("fixedHeight")
+    }
+  })
+}
+
 // eventbus
 eventBus.on("updateWidth", updateWidthHandler)
 eventBus.on("compact", compactHandler)
@@ -381,6 +403,7 @@ eventBus.on("setRowHeight", setRowHeightHandler)
 eventBus.on("setMaxRows", setMaxRowsHandler)
 eventBus.on("directionchange", directionchangeHandler)
 eventBus.on("setColNum", setColNum)
+eventBus.on("calcClientHeight", calcClientHeightHandler)
 
 rtl.value = getDocumentDir() === "rtl"
 
@@ -500,12 +523,14 @@ function handleResize(event: MouseEvent) {
 
     const newSize = {width: 0, height: 0}
     let pos
+    // 自适应高度时，禁止修改高度，先取得其大小
+    pos = calcPosition(innerX.value, innerY.value, innerW.value, innerH.value)
     switch (event.type) {
       case "resizestart": {
         tryMakeResizable()
         previousW.value = innerW.value
         previousH.value = innerH.value
-        pos = calcPosition(innerX.value, innerY.value, innerW.value, innerH.value)
+        //pos = calcPosition(innerX.value, innerY.value, innerW.value, innerH.value)
         newSize.width = pos.width
         newSize.height = pos.height
         resizing.value = newSize
@@ -520,15 +545,20 @@ function handleResize(event: MouseEvent) {
         } else {
           newSize.width = Number(resizing.value?.width) + coreEvent.deltaX / transformScale.value
         }
-        newSize.height = Number(resizing.value?.height) + coreEvent.deltaY / transformScale.value
-
+        //是否允许拖放时修改高度
+        if (thisLayout?.resizingHeight) {
+          newSize.height = Number(resizing.value?.height) + coreEvent.deltaY / transformScale.value
+        } else {
+          //只使用原始高度
+          newSize.height = pos.height
+        }
         ///console.log("### resize => " + event.type + ", deltaX=" + coreEvent.deltaX + ", deltaY=" + coreEvent.deltaY);
         resizing.value = newSize
         break
       }
       case "resizeend": {
         //console.log("### resize end => x=" +this.innerX + " y=" + this.innerY + " w=" + this.innerW + " h=" + this.innerH);
-        pos = calcPosition(innerX.value, innerY.value, innerW.value, innerH.value)
+        // pos = calcPosition(innerX.value, innerY.value, innerW.value, innerH.value)
         newSize.width = pos.width
         newSize.height = pos.height
         //                        console.log("### resize end => " + JSON.stringify(newSize));
@@ -591,10 +621,11 @@ function handleDrag(event: MouseEvent) {
   const position = getControlPosition(event)
 
   // Get the current drag point from the event. This is used as the offset.
-  if (position === null) return
+  if (position === null) return // not possible but satisfies flow
 
-  // not possible but satisfies flow
-  const {x, y} = position
+  // Added by ZZY: 暴露鼠标位置
+  const {x, y, clientX, clientY} = position
+
   // let shouldUpdate = false;
   let newPosition = {top: 0, left: 0}
   switch (event.type) {
@@ -694,13 +725,25 @@ function handleDrag(event: MouseEvent) {
   lastY.value = y
 
   if (innerX.value !== pos.x || innerY.value !== pos.y) {
-    emit("move", props.i, pos.x, pos.y)
+    emit("move", props.i, pos.x, pos.y, clientX, clientY)
+  } else {
+    // Added by ZZY : 检查GridItem是否移出了容器
+    const parentWrapperRect = thisLayout?.wrapper.getBoundingClientRect()
+    if (parentWrapperRect) {
+      if (!mouseInRect(clientX, clientY, parentWrapperRect)) {
+        emit("move", props.i, pos.x, pos.y, clientX, clientY)
+      }
+    }
   }
+
   if (
     event.type === "dragend" &&
     (previousX.value !== innerX.value || previousY.value !== innerY.value)
   ) {
-    emit("moved", props.i, pos.x, pos.y)
+    emit("moved", props.i, pos.x, pos.y, clientX, clientY)
+  } else {
+    // 始终都需要moved事件
+    emit("moved", props.i, pos.x, pos.y, clientX, clientY)
   }
   const data = {
     eventType: event.type,
@@ -708,10 +751,20 @@ function handleDrag(event: MouseEvent) {
     x: pos.x,
     y: pos.y,
     h: innerH.value,
-    w: innerW.value
+    w: innerW.value,
+    clientX,
+    clientY
   }
   eventBus.emit("dragEvent", data)
 }
+
+const mouseInRect = (clientX: number, clientY: number, rect: DOMRect) => {
+  if (clientX > rect.left && clientX < rect.right && clientY > rect.top && clientY < rect.bottom) {
+    return true
+  }
+  return false
+}
+
 function calcPosition(x: number, y: number, w: number, h: number): Pos {
   const colWidth = calcColWidth()
   // add rtl support
@@ -766,6 +819,17 @@ function calcXY(top: number, left: number) {
   x = Math.max(Math.min(x, cols.value - innerW.value), 0)
   y = Math.max(Math.min(y, maxRows.value - innerH.value), 0)
 
+  // Added by ZZY
+  // 有时，我们需要将GridItem安排在特定的列，例如只能安排在奇数列上。
+  // 为了实现这个特性，从父容器获得一个参数，检查x值，并规范化
+  if (thisLayout?.moduloValue) {
+    const mod = thisLayout?.moduloValue as number
+    if (x % mod > 0) {
+      const ori = x
+      x -= x % mod
+    }
+  }
+
   return {x, y}
 }
 
@@ -801,6 +865,16 @@ function calcWH(height: number, width: number, autoSizeFlag = false): {w: number
   // ...
   // w = (width + margin) / (colWidth + margin)
   let w = Math.round((width + margin.value[0]) / (colWidth + margin.value[0]))
+
+  // Added by ZZY
+  // 为了保证UI效果，我们可以将宽度设置n列的若干倍
+  if (thisLayout?.restrictedWidth && thisLayout?.moduloValue) {
+    const r = w % thisLayout.moduloValue
+    if (r > 0) {
+      w -= w % thisLayout.moduloValue
+    }
+  }
+
   let h = 0
   if (!autoSizeFlag) {
     h = Math.round((height + margin.value[1]) / (rowHeight.value + margin.value[1]))
@@ -969,13 +1043,25 @@ defineExpose({
   autoSize,
   calcXY,
   dragging,
+  styleObj,
   ...props
 })
 </script>
 <style>
+.autoHeight {
+  height: auto !important;
+}
+
+.fixedHeight {
+  height: v-bind("styleObj.height") !important;
+}
+
 .vue-grid-item {
   transition: all 200ms ease;
   transition-property: left, top, right;
+  touch-action: none;
+  user-select: none;
+  box-sizing: border-box;
   /* add right for rtl */
 }
 

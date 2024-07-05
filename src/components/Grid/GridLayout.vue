@@ -47,6 +47,12 @@ export interface Props {
   cols?: {lg: number; md: number; sm: number; xs: number; xxs: number}
   preventCollision?: boolean
   useStyleCursor?: boolean
+  //GridItem的宽度是否受限。restrictedWidth为true时，GridItem宽度必须是moduloValue的整数倍
+  restrictedWidth?: boolean
+  //配合restrictedWidth
+  moduloValue?: number | null
+  //是否允许拖放改变GridItem的高度
+  resizingHeight?: boolean
 }
 export interface LayoutData {
   width: number | null
@@ -109,7 +115,10 @@ const props = withDefaults(defineProps<Props>(), {
   breakpoints: () => ({lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}),
   cols: () => ({lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}),
   preventCollision: false,
-  useStyleCursor: true
+  useStyleCursor: true,
+  restrictedWidth: false,
+  moduloValue: null,
+  resizingHeight: true
 })
 
 // self data
@@ -141,6 +150,7 @@ const eventBus: Emitter<{
   setTransformScale: number
   setMaxRows: number
   compact: void
+  calcClientHeight: undefined
 }> = mitt()
 
 provide("eventBus", eventBus)
@@ -210,6 +220,10 @@ onMounted(() => {
       emit("layout-updated", props.layout)
 
       updateHeight()
+
+      // Added By ZZY：处理高度自适应
+      rearrange(200, 200)
+
       nextTick(() => {
         erd.value = elementResizeDetectorMaker({
           strategy: "scroll", //<- For ultra performance.
@@ -444,6 +458,8 @@ function dragEvent(
     positionsBeforeDrag.value = undefined
     emit("layout-updated", layout)
   }
+  // Added by ZZY
+  rearrange(200, 200)
 }
 function resizeEvent(
   eventName?: EventType,
@@ -511,6 +527,10 @@ function resizeEvent(
   eventBus.emit("compact")
   updateHeight()
 
+  // Added by ZZY
+  // 如果拖放过程中改变了GridItem的高度，可能发生重叠，需要重新计算高度后布局
+  rearrange(200, 200)
+
   if (eventName === "resizeend") emit("layout-updated", props.layout)
 }
 
@@ -571,6 +591,26 @@ function findDifference(layout: Layout, originalLayout: Layout) {
   //Combine the two arrays of unique entries#
   return uniqueResultOne.concat(uniqueResultTwo)
 }
+
+const timeoutID1 = ref<any>(null)
+const timeoutID2 = ref<any>(null)
+/**
+ * 延时重新计算GridItem的高度，并重新布局。
+ * 此方案不够完善，setTimeOut不是最好方式，延时值也不好估算
+ * @param timeout  计算高度的延时
+ * @param timeout2 重新布局的延时
+ */
+function rearrange(timeout: number, timeout2: number) {
+  if (timeoutID1.value) clearTimeout(timeoutID1.value)
+  timeoutID1.value = setTimeout(() => {
+    //计算各GridItem的高度
+    eventBus.emit("calcClientHeight")
+    //然后重新布局，调整layoutItem.x值
+    if (timeoutID2.value) clearTimeout(timeoutID2.value)
+    timeoutID2.value = setTimeout(() => onWindowResize(), Math.min(timeout, 1000))
+  }, Math.min(timeout2, 1000))
+}
+
 //Expose some property for this
 defineExpose({
   ...props,
@@ -584,7 +624,8 @@ defineExpose({
   originalLayout,
   erd,
   defaultGridItem,
-  dragEvent
+  dragEvent,
+  wrapper: this$refsLayout
 })
 </script>
 
