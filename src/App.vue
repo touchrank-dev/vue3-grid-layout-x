@@ -96,8 +96,8 @@ const appendItem = () => {
     </div>
   </div>
   <hr size="1" />
-  <button @click="exportLayout">Export</button>
-  <button @click="appendItem">Append</button>
+  <button @click="exportLayout">Export layout data</button>
+  <button @click="appendItem">Append a new GridItem</button>
 </template>
 
 <style scoped>
