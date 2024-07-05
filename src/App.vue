@@ -37,7 +37,29 @@ const exportLayout = () => {
   console.log(toRaw(testLayout.value))
 }
 
-
+const nextId = ref(100)
+/**
+ * 演示插入一项
+ */
+const appendItem = () => {
+  // 修改各项以保证新项插入到第一位
+  testLayout.value.forEach(it => {
+    it.sortIndex += 1
+    if (it.x == 0 && it.y == 0) {
+      it.y += 1
+    }
+  })
+  //插入一项
+  testLayout.value.push({
+    sortIndex: 0,
+    x: 0,
+    y: 0,
+    w: 2,
+    h: 25,
+    i: `${nextId.value++}`,
+    body: "[APPEND] " + randomText()
+  })
+}
 </script>
 
 <template>
@@ -75,6 +97,7 @@ const exportLayout = () => {
   </div>
   <hr size="1" />
   <button @click="exportLayout">Export</button>
+  <button @click="appendItem">Append</button>
 </template>
 
 <style scoped>
