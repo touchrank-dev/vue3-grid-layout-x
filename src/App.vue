@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import {ref, reactive, watch, onMounted, nextTick} from "vue"
-import {testData} from "./test"
+import {ref, toRaw} from "vue"
+import {testData2} from "./test"
 
 import GridLayout from "./components/Grid/GridLayout.vue"
 import GridItem from "./components/Grid/GridItem.vue"
-import ExampleOne from "./example/exampleOne.vue"
-let testLayout = ref(testData)
+
+const randomText = () => {
+  const len = sampleText.length
+  const start = Math.floor(Math.random() * 10)
+  const end = Math.floor(Math.random() * len)
+  return sampleText.substring(start, Math.max(start + 10, end))
+}
+
+testData2.forEach(it => (it.body = randomText()))
+let testLayout = ref(testData2)
 
 const refLayout = ref()
-
-const colNum = ref<number>(12)
+const sampleText =
+  "中国科学院新疆生态与地理研究所的科学家发现了一种能在火星环境下生存的沙漠苔藓。极端环境生物是生命的奇迹，代表着生命对环境的极限适应能力。为了适应极端环境（干燥、寒冷、高温、辐射等），它们演化出了令人惊叹的特殊“本领”，是极其珍贵的战略生物资源。极端生物及其适应性的研究对于探索生命奥秘、揭示地球生命起源与演化、实现地外星球拓殖等均有重要意义。"
 
 const mapCache: Map<string, any> = new Map()
 
-function handleResize(i: string | number, w: number, h: number, x: number, y: number) {
-  console.log(i, w, h, x, y)
-}
 const responsive = ref<boolean>(true)
 
 function set$Children(vm: any) {
@@ -23,123 +28,33 @@ function set$Children(vm: any) {
     mapCache.set(vm.i, vm)
   }
 }
-// {x: number | null; y: number | null}
 
-let mouseXY = {x: 0, y: 0}
-let DragPos = {x: 0, y: 0, w: 1, h: 1, i: ""}
-
-function drag(e: DragEvent) {
-  e.stopPropagation()
-  e.preventDefault()
-  const t = document.getElementById("content") as HTMLElement
-  let parentRect = t.getBoundingClientRect()
-  let mouseInGrid = false
-  if (
-    mouseXY.x > parentRect.left &&
-    mouseXY.x < parentRect.right &&
-    mouseXY.y > parentRect.top &&
-    mouseXY.y < parentRect.bottom
-  ) {
-    mouseInGrid = true
-  }
-  if (mouseInGrid === true && testLayout.value.findIndex(item => item.i === "drop") === -1) {
-    testLayout.value.push({
-      x: (testLayout.value.length * 2) % colNum.value,
-      y: testLayout.value.length + colNum.value, // puts it at the bottom
-      w: 3,
-      h: 4,
-      i: "drop"
-    })
-  }
-
-  let index = testLayout.value.findIndex(item => item.i === "drop")
-
-  if (index !== -1) {
-    try {
-      refLayout.value.defaultGridItem.$el.style.display = "none"
-    } catch {}
-    let el = mapCache.get("drop")
-    if (!el) return
-    // console.log("jjj")
-
-    el.dragging = {top: mouseXY.y - parentRect.top, left: mouseXY.x - parentRect.left}
-    let new_pos = el.calcXY(mouseXY.y - parentRect.top, mouseXY.x - parentRect.left)
-    if (mouseInGrid === true) {
-      refLayout.value.dragEvent("dragstart", "drop", new_pos.x, new_pos.y, 3, 4)
-      DragPos.i = String(index)
-      DragPos.x = testLayout.value[index].x
-      DragPos.y = testLayout.value[index].y
-    }
-    if (mouseInGrid === false) {
-      refLayout.value.dragEvent("dragend", "drop", new_pos.x, new_pos.y, 3, 4)
-      testLayout.value = testLayout.value.filter(obj => obj.i !== "drop")
-    }
-  }
+const heightUpdated = (i: string | number, h: number, item: any) => {
+  item.h = h
 }
 
-function dragend() {
-  const t = document.getElementById("content") as HTMLElement
-  let parentRect = t.getBoundingClientRect()
-  let mouseInGrid = false
-  if (
-    mouseXY.x > parentRect.left &&
-    mouseXY.x < parentRect.right &&
-    mouseXY.y > parentRect.top &&
-    mouseXY.y < parentRect.bottom
-  ) {
-    mouseInGrid = true
-  }
-
-  if (mouseInGrid === true) {
-    refLayout.value.dragEvent("dragend", "drop", DragPos.x, DragPos.y, 3, 4)
-    testLayout.value = testLayout.value.filter(obj => obj.i !== "drop")
-    // UNCOMMENT below if you want to add a grid-item
-    nextTick(() => {
-      testLayout.value.push({
-        x: DragPos.x,
-        y: DragPos.y,
-        w: 3,
-        h: 4,
-        i: DragPos.i
-      })
-      refLayout.value.dragEvent("dragend", DragPos.i, DragPos.x, DragPos.y, 3, 4)
-      mapCache.delete("drop")
-    })
-  }
+const exportLayout = () => {
+  console.log(toRaw(testLayout.value))
 }
 
-function addDragOverEvent(e: DragEvent) {
-  mouseXY.x = e.clientX
-  mouseXY.y = e.clientY
-}
-onMounted(() => {
-  document.addEventListener("dragover", addDragOverEvent)
-})
+
 </script>
 
 <template>
   <div class="layout">
-    <div
-      class="droppable-element"
-      draggable="true"
-      unselectable="on"
-      @drag="drag"
-      @dragend="dragend"
-    >
-      Droppable Element (Drag me!)
-    </div>
     <div id="content">
       <GridLayout
         ref="refLayout"
         v-model:layout="testLayout"
         :responsive="responsive"
         :col-num="12"
-        :row-height="30"
+        :row-height="10"
+        :auto-size="true"
         :vertical-compact="true"
         :use-css-transforms="true"
       >
         <grid-item
-          v-for="item in testLayout"
+          v-for="(item, idx) in testLayout"
           :ref="el => set$Children(el)"
           :key="item.i"
           class="test"
@@ -148,29 +63,34 @@ onMounted(() => {
           :w="item.w"
           :h="item.h"
           :i="item.i"
-          :min-h="3"
-          :min-w="3"
-          @resized="handleResize"
+          :sort-index="idx"
+          :min-w="1"
+          @height-updated="(i, h) => heightUpdated(i, h, item)"
         >
-          <!--<custom-drag-element :text="item.i"></custom-drag-element>-->
-          <div>
-            {{ item.i }}
-            <!-- {{ style }} -->
-          </div>
-          <!--<button @click="clicked">CLICK ME!</button>-->
+          {{ item.sortIndex }}
+          <p>{{ item.body }}</p>
         </grid-item>
       </GridLayout>
     </div>
   </div>
-  <ExampleOne></ExampleOne>
+  <hr size="1" />
+  <button @click="exportLayout">Export</button>
 </template>
 
 <style scoped>
 .layout {
   background-color: #eee;
+  touch-action: none;
+}
+.vue-grid-item {
+  border-radius: 8px;
+  padding: 4px;
+  margin: 0px;
 }
 .test {
   background-color: #ddd;
+  font-size: 14px;
+  line-height: 150%;
 }
 .droppable-element {
   width: 150px;
