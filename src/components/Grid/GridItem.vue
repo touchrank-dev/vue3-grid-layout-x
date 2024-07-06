@@ -74,6 +74,7 @@ const emit = defineEmits<{
   (e: "dragging", event: MouseEvent, i: number | string): void
   (e: "dragend", event: MouseEvent, i: number | string): void
   (e: "height-updated", i: number | string, h: number): void
+  (e: "postDrag", i: number | string, x: number, y: number, clientX: number, clientY: number): void
 }>()
 
 interface PropsChild {
@@ -741,10 +742,10 @@ function handleDrag(event: MouseEvent) {
     (previousX.value !== innerX.value || previousY.value !== innerY.value)
   ) {
     emit("moved", props.i, pos.x, pos.y, clientX, clientY)
-  } else {
-    // 始终都需要moved事件
-    emit("moved", props.i, pos.x, pos.y, clientX, clientY)
+  } else if (event.type == "dragend") {
+    emit("postDrag", props.i, pos.x, pos.y, clientX, clientY)
   }
+
   const data = {
     eventType: event.type,
     i: props.i,

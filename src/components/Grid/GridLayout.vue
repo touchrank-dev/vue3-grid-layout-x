@@ -10,6 +10,7 @@
       :w="placeholder.w"
       :h="placeholder.h"
       :i="placeholder.i"
+      :sort-index="-1"
     ></GridItem>
   </div>
 </template>
