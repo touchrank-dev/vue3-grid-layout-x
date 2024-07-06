@@ -1,0 +1,22 @@
+.layout {
+  background-color: #eee;
+  touch-action: none;
+}
+.vue-grid-item {
+  border-radius: 8px;
+  padding: 4px;
+  margin: 0px;
+}
+.test {
+  background-color: #ddd;
+  font-size: 14px;
+  line-height: 150%;
+}
+.droppable-element {
+  width: 150px;
+  text-align: center;
+  background: #fdd;
+  border: 1px solid black;
+  margin: 10px 0;
+  padding: 10px;
+}
