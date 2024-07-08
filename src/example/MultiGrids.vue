@@ -67,9 +67,10 @@ const moveEvent = (
 ) => {
   const itemRef = gridItemsRef.get(itemId)
   if (!itemRef) {
-    removableLog("未找到播放的元素", itemId)
+    removableLog("未找到拖放的元素", itemId)
     return
   }
+  removableLog(`BREAK! Got a moveEvent for ${itemId}`)
   const fromGrid = itemRef.gridIndex
   const itemData = layoutData.value[fromGrid].find(ele => ele.i === itemId)
   if (!itemData) {
@@ -137,6 +138,7 @@ const moveEvent = (
 
   const dropItemRef = gridItemsRef.get(dropId)
   if (dropItemRef) {
+    removableLog("Got Drop item ref.")
     const dropItem = dropItemRef.obj
     try {
       dropItem.styleObj.display = "none"
@@ -155,6 +157,7 @@ const moveEvent = (
     )
     const mouseInTargetGrid = mouseInRect(clientX, clientY, targetParentRect)
     if (!mouseInTargetGrid) {
+      removableLog("mouse is not in target grid")
       dropGridLayout.dragEvent(
         "dragend",
         dropId,
@@ -167,6 +170,7 @@ const moveEvent = (
     }
     draggingItem.x = newPos.x
     draggingItem.y = newPos.y
+    removableLog("BREAK! continue dragging, hoping to emit movedEvent.")
   } else {
     removableLog("BREAK! Could not found the Drop item, do it next turn")
   }
@@ -272,9 +276,10 @@ const movedEvent = (
 
 /**
  * 拖放结束回调
+ * @deprecated Don't need this, movedEvent() will call cleanContext() in nextTick
  */
 const postDrag = () => {
-  cleanContext(true)
+  // cleanContext(true)
 }
 
 /**
