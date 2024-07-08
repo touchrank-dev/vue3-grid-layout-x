@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {computed, ref} from "vue"
+import {computed, ref, shallowRef} from "vue"
 import BasicDemo from "./example/BasicDemo.vue"
 import MultiGrids from "./example/MultiGrids.vue"
 
-const demos = ref({
+const demos = shallowRef({
   basicDemo: BasicDemo,
   multiGrids: MultiGrids
 })
